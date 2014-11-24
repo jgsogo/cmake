@@ -1,0 +1,29 @@
+
+macro(GLUTInstall)
+	if(NOT TARGET Glut)
+		set (GLUT_Version ${GLUT_Version} CACHE STRING "GLUT version separated by dots (ex: 3.7.6)" FORCE)
+		OPTION(GLUT_Use_System "Use a GLUT library supplied on the system" ON)
+		
+		if(${GLUT_Use_System})
+			message(STATUS "GLUT ${GLUT_Version} will be used from the system")
+			if(${AS_EXTERNAL_PROJECT})
+				if (NOT DEFINED GLUT_ROOT)
+					message(FATAL_ERROR "GLUT_ROOT must be defined when using '${CMAKE_PROJECT_NAME}' as external project")
+				endif()
+			else()
+				set(GLUT_ROOT ${GLUT_ROOT} CACHE PATH "Path to GLUT on the system" )
+			endif()
+						
+			set(GLUT_INCLUDE_DIRS ${GLUT_ROOT}/include CACHE INTERNAL "Internal")
+			set(GLUT_LIBRARIES "${GLUT_ROOT}/lib/glut/Release/glut32.lib" CACHE INTERNAL "Internal")
+			link_directories("${GLUT_ROOT}/lib/glut/Release") #Glut automatically add library to project.
+
+		else()
+			message(FATAL_ERROR " - GLUT download not implemented")
+		endif()
+		
+		message(STATUS "GLUT_ROOT ${GLUT_ROOT}")
+		message(STATUS "GLUT_INCLUDE_DIRS ${GLUT_INCLUDE_DIRS}")
+		message(STATUS "GLUT_LIBRARIES ${GLUT_LIBRARIES}")	
+	endif()
+endmacro()

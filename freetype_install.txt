@@ -1,0 +1,33 @@
+
+macro(FREETYPEInstall)
+	if(NOT TARGET Freetype)
+		set (FREETYPE_Version ${FREETYPE_Version} CACHE STRING "FREETYPE version separated by dots (ex: 3.7.6)" FORCE)
+		OPTION(FREETYPE_Use_System "Use a FREETYPE library supplied on the system" ON)
+		
+		if(${FREETYPE_Use_System})
+			message(STATUS "FREETYPE ${FREETYPE_Version} will be used from the system")
+			if(${AS_EXTERNAL_PROJECT})
+				if (NOT DEFINED FREETYPE_ROOT)
+					message(FATAL_ERROR "FREETYPE_ROOT must be defined when using '${CMAKE_PROJECT_NAME}' as external project")
+				endif()
+			else()
+				set(FREETYPE_ROOT ${FREETYPE_ROOT} CACHE PATH "Path to FREETYPE on the system" )
+			endif()
+					
+			string(REPLACE "." "" _FREETYPE_Version_No_Dots ${FREETYPE_Version})
+			
+			set(FREETYPE_INCLUDE_DIR_freetype2 ${FREETYPE_ROOT}/include CACHE INTERNAL "Internal")
+			set(FREETYPE_INCLUDE_DIR_ft2build ${FREETYPE_ROOT}/objs/win32/vc2010 CACHE INTERNAL "Internal")
+			set(FREETYPE_LIBRARY ${FREETYPE_INCLUDE_DIR_ft2build}/freetype${_FREETYPE_Version_No_Dots}MT.lib CACHE INTERNAL "Internal")
+			
+			find_package(Freetype ${FREETYPE_Version} REQUIRED)
+
+		else()
+			message(FATAL_ERROR " - FREETYPE download not implemented")
+		endif()
+		
+		message(STATUS "FREETYPE_ROOT ${FREETYPE_ROOT}")
+		message(STATUS "FREETYPE_INCLUDE_DIRS ${FREETYPE_INCLUDE_DIRS}")
+		message(STATUS "FREETYPE_LIBRARIES ${FREETYPE_LIBRARIES}")	
+	endif()
+endmacro()

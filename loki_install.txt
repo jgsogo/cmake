@@ -1,0 +1,65 @@
+# Loki get from system or install
+
+cmake_minimum_required(VERSION 2.8)
+
+macro(LokiInstall)
+	if(NOT TARGET Loki)
+		set (LOKI_Revno ${LOKI_Revno} CACHE STRING "Loki revision number from repository" FORCE)
+		OPTION(LOKI_Use_System "Use a loki library supplied on the system" ON)
+		OPTION(LOKI_As_DLL "Use loki as DLL" OFF)
+		OPTION(LOKI_As_LIB "Use loki as static library" OFF)
+		
+		if(LOKI_As_DLL AND LOKI_As_LIB)
+			message(FATAL_ERROR "Loki cannot be included as LIB and DLL at the same time")
+		endif()
+		
+		if(LOKI_Use_System)
+			set(LOKI_ROOT ${LOKI_ROOT} CACHE PATH "Path to loki on the system" )
+		else()
+			message(STATUS "Loki ${LOKI_Revno} will be downloaded")
+			include (ExternalProject)
+			
+			# Download
+			include(ExternalProject)
+			ExternalProject_Add(
+				Loki
+				PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/loki
+				SVN_REPOSITORY --force http://svn.code.sf.net/p/loki-lib/code/trunk
+				SVN_REVISION -r "${LOKI_Revno}"
+				CONFIGURE_COMMAND ""
+				BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/external/loki/src/Loki/src
+				BUILD_COMMAND make.msvc.dll.bat
+				# BUILD_IN_SOURCE 1
+				INSTALL_COMMAND ""
+				)
+			set_property(TARGET Loki PROPERTY FOLDER "Externals")
+			ExternalProject_Get_Property( Loki source_dir )
+			ExternalProject_Get_Property( Loki binary_dir )
+			
+			set(LOKI_ROOT ${source_dir} CACHE INTERNAL "Internal")
+			mark_as_advanced(LOKI_ROOT)
+		endif()
+		
+		set(LOKI_INCLUDE_DIRS "${LOKI_ROOT}/include" CACHE INTERNAL "Internal")
+		if(LOKI_As_DLL)
+			set(LOKI_LIBRARIES "${LOKI_ROOT}/lib/loki015.lib" CACHE INTERNAL "Internal")
+			add_definitions(-DLOKI_DLL)
+		elseif(LOKI_As_LIB)
+			set(LOKI_LIBRARIES ${LOKI_ROOT}/lib/loki.lib CACHE INTERNAL "Internal")
+		else()
+			set(LOKI_SRC_FILES 
+				${LOKI_ROOT}/src/LevelMutex.cpp
+				${LOKI_ROOT}/src/OrderedStatic.cpp
+				${LOKI_ROOT}/src/SafeFormat.cpp
+				${LOKI_ROOT}/src/Singleton.cpp
+				${LOKI_ROOT}/src/SmallObj.cpp
+				${LOKI_ROOT}/src/SmartPtr.cpp
+				${LOKI_ROOT}/src/StrongPtr.cpp
+				CACHE INTERNAL "Internal")
+		endif()
+		
+		message(STATUS "LOKI_ROOT ${LOKI_ROOT}")
+		message(STATUS "LOKI_INCLUDE_DIRS ${LOKI_INCLUDE_DIRS}")
+		message(STATUS "LOKI_LIBRARIES ${LOKI_LIBRARIES}")
+	endif()
+endmacro()

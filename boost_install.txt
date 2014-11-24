@@ -1,0 +1,66 @@
+# Credit: https://bitbucket.org/Vertexwahn/cmakedemos/raw/ec4988812eee4661fa7ac64c9fe4a6f1a4decf13/ExternalProject/CMakeLists.txt
+
+cmake_minimum_required(VERSION 2.8)
+
+macro(BoostInstall)
+	if(NOT TARGET Boost)
+		set (Boost_Version ${Boost_Version} CACHE STRING "Boost version separated by dots (ex: 1.49.0)" FORCE)
+		OPTION(BOOST_Use_System "Use a boost library supplied on the system" ON)
+		
+		set(BOOST_MIN_VERSION ${Boost_Version} CACHE INTERNAL "Internal")
+		if(NOT DEFINED Boost_USE_STATIC_LIBS)
+			set(Boost_USE_STATIC_LIBS ON CACHE INTERNAL "Internal")
+		endif()
+		message(STATUS "Boost_USE_STATIC_LIBS: ${Boost_USE_STATIC_LIBS}.")
+		if(NOT DEFINED Boost_USE_MULTITHREADED)
+			set(Boost_USE_MULTITHREADED ON CACHE INTERNAL "Internal")
+		endif()
+		message(STATUS "Boost_USE_MULTITHREADED: ${Boost_USE_MULTITHREADED}.")
+		
+		if(BOOST_Use_System)
+			set(BOOST_ROOT ${BOOST_ROOT} CACHE PATH "Path to boost on the system" )
+			find_package(Boost ${BOOST_MIN_VERSION} REQUIRED COMPONENTS ${ARGN})
+			if(NOT Boost_FOUND)
+				message(FATAL_ERROR "Boost ${Boost_Version} was NOT found on the system")
+			endif()
+			set( Boost_INCLUDE_DIRS ${BOOST_ROOT} CACHE INTERNAL "Internal")
+			set( Boost_LIBRARY_DIR ${BOOST_ROOT}/stage/lib CACHE INTERNAL "Internal")
+		else()
+			message(STATUS "Boost ${Boost_Version} will be downloaded and installed")
+			include (ExternalProject)
+			string(REPLACE "." "_" Boost_Version_Underscore ${Boost_Version})
+			
+			#Download, build and install Boost
+			include(ExternalProject)
+			ExternalProject_Add(
+				Boost
+				PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/boost
+				URL http://downloads.sourceforge.net/project/boost/boost/${Boost_Version}/boost_${Boost_Version_Underscore}.zip
+				UPDATE_COMMAND "bootstrap.bat"
+				CONFIGURE_COMMAND ""
+				BUILD_COMMAND bjam threading=multi toolset=msvc-10.0 variant=release,debug
+				BUILD_IN_SOURCE 1
+				INSTALL_COMMAND ""
+				)
+			set_property(TARGET Boost PROPERTY FOLDER "Externals")
+			ExternalProject_Get_Property( Boost source_dir )
+			ExternalProject_Get_Property( Boost binary_dir )
+			
+			set( Boost_INCLUDE_DIRS ${source_dir} CACHE INTERNAL "Internal")
+			set( Boost_LIBRARY_DIR ${binary_dir}/stage/lib CACHE INTERNAL "Internal")
+			set( BOOST_ROOT ${source_dir} CACHE PATH "Internal" FORCE)
+			#foreach(LIB ${ARGN})
+			#	list(APPEND Boost_LIBRARIES "lib${LIB}")
+			#endforeach()
+			#message("Boost binaries in ${binary_dir}")
+			#set( Boost_LIBRARIES debug;${binary_dir}/stage/lib/libboost_program_options-vc110-mt-gd-1_49.lib;optimized;${binary_dir}/stage/lib/libboost_program_options-vc110-mt-1_49.lib )		
+		endif()
+		
+		message(STATUS "BOOST_ROOT ${BOOST_ROOT}")
+		message(STATUS "Boost_INCLUDE_DIRS ${Boost_INCLUDE_DIRS}")
+		message(STATUS "Boost_LIBRARY_DIR ${Boost_LIBRARY_DIR}")
+		
+		include_directories( ${Boost_INCLUDE_DIRS} )
+		link_directories( ${Boost_LIBRARY_DIR} )
+	endif()
+endmacro()

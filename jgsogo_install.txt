@@ -1,0 +1,89 @@
+cmake_minimum_required(VERSION 2.8)
+
+macro(JGSogoInstall jgsogo_library jgsogo_library_cmake_args_list)
+	if(NOT TARGET _${jgsogo_library})	
+		set (${jgsogo_library}_Version ${${jgsogo_library}_Version} CACHE STRING "${jgsogo_library} version separated by dots (ex: 1.49.0)" FORCE)
+		set (_version ${${jgsogo_library}_Version})
+		string (TOUPPER ${jgsogo_library} _jgsogo_library_upper)
+		OPTION(${jgsogo_library}_Use_System "Use ${jgsogo_library} library supplied on the system" ON)
+		
+		if(${jgsogo_library}_Use_System)
+			message(STATUS "${jgsogo_library} ${_version} will be used from the system")
+			if (NOT DEFINED ${jgsogo_library}_DIR)
+				if(${AS_EXTERNAL_PROJECT})
+					message(FATAL_ERROR "${jgsogo_library}_DIR must be defined when using '${CMAKE_PROJECT_NAME}' as external project")
+				else()
+					set(${jgsogo_library}_DIR ${JGSOGO_INSTALL_PREFIX}/CMake)
+				endif()
+			endif()
+			find_package(${jgsogo_library} ${_version} EXACT REQUIRED)
+			add_library(_${jgsogo_library} SHARED IMPORTED) # Needed for topmost 'if' clause
+			set_target_properties(_${jgsogo_library} PROPERTIES targets "${${jgsogo_library}_LIBRARIES}")
+		else()
+			cmake_minimum_required(VERSION 2.8.10) # Needed for Mercurial support
+			message(STATUS "${jgsogo_library} ${_version} will be downloaded, build and installed")		
+			include (ExternalProject)
+			list(APPEND _CMAKE_ARGS -DJGSOGO_INSTALL_PREFIX:PATH=${JGSOGO_INSTALL_PREFIX} -DAS_EXTERNAL_PROJECT:BOOL=ON)
+			list(APPEND _CMAKE_ARGS ${jgsogo_library_cmake_args_list})
+			set(${jgsogo_library}_Repository "jgsogo" CACHE STRING "${jgsogo_library} repository to pull from")
+			mark_as_advanced(${jgsogo_library}_Repository)
+			# message(STATUS "cmake_args: ${_CMAKE_ARGS}")
+			ExternalProject_Add(
+				"_${jgsogo_library}"
+				PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/${jgsogo_library}
+				HG_REPOSITORY http://URL.AND/PATH/${${jgsogo_library}_Repository}/${jgsogo_library}
+				HG_TAG ${${jgsogo_library}_Version}
+				CMAKE_ARGS ${_CMAKE_ARGS}
+				# Wrap download, configure and build steps in a script to log output
+				#LOG_DOWNLOAD ON
+				#LOG_CONFIGURE ON
+				#LOG_BUILD ON
+				)
+			set_property(TARGET _${jgsogo_library} PROPERTY FOLDER "Externals")
+			#ExternalProject_Get_Property( ${jgsogo_library} source_dir )
+			#ExternalProject_Get_Property( ${jgsogo_library} binary_dir )
+			#ExternalProject_Get_Property( ${jgsogo_library} install_dir )
+			
+			# Al descargarlo como "external" no tengo (o no sé obtener) acceso al archivo .cmake y targets-*.cmake para poder
+			# recoger los datos del paquete de forma "automática" así que me los invento... :/
+			set(${_jgsogo_library_upper}_INCLUDE_DIRS ${JGSOGO_INSTALL_PREFIX}/include CACHE INTERNAL "Internal ${_jgsogo_library_upper}_INCLUDE_DIRS" FORCE)
+			set(${jgsogo_library}_DIR ${JGSOGO_INSTALL_PREFIX}/CMake CACHE PATH "${_jgsogo_library_upper}_DIR" FORCE)
+
+			if(NOT DEFINED ${_jgsogo_library_upper}_LIBRARIES)
+				message(FATAL_ERROR "TODO: Define variable '${_jgsogo_library_upper}_LIBRARIES' as a list with the libraries desired to import from '${jgsogo_library}'. ex: 'architecture;draw;comunication'")
+			endif()
+
+			# Commands may need to know the format version.
+			#set(CMAKE_IMPORT_FILE_VERSION 1)
+
+			# Import each target for configuration "${CMAKE_CFG_INTDIR}"
+			set_target_properties(_${jgsogo_library} PROPERTIES targets "${${_jgsogo_library_upper}_LIBRARIES}")
+			foreach(_expected_library ${${_jgsogo_library_upper}_LIBRARIES})
+				message(STATUS "expected library '${_expected_library}'")
+				# Create imported target architecture
+				add_library(${_expected_library} SHARED IMPORTED GLOBAL)
+				set_property(TARGET ${_expected_library} APPEND PROPERTY IMPORTED_CONFIGURATIONS Debug)
+				set_target_properties(${_expected_library} PROPERTIES
+					IMPORTED_IMPLIB_DEBUG "${JGSOGO_INSTALL_PREFIX}/lib/${_expected_library}.lib"
+					IMPORTED_LOCATION_DEBUG "${JGSOGO_INSTALL_PREFIX}/bin/${_expected_library}.dll"
+					)
+				list(APPEND _IMPORT_CHECK_TARGETS ${_expected_library} )
+				#list(APPEND _IMPORT_CHECK_FILES_FOR_${_expected_library} "E:/__CMAKE/Repositorios/cedex/install/lib/architecture.lib" "E:/__CMAKE/Repositorios/cedex/install/bin/architecture.dll" )
+			endforeach()		
+		endif()
+		
+		set(${jgsogo_library}_INCLUDE_DIRS ${${_jgsogo_library_upper}_INCLUDE_DIRS} CACHE INTERNAL "Internal ${_jgsogo_library_upper}_INCLUDE_DIRS")
+		set(${jgsogo_library}_LIBRARIES ${${_jgsogo_library_upper}_LIBRARIES} CACHE INTERNAL "Internal ${_jgsogo_library_upper}_LIBRARIES")
+
+		message(STATUS "${jgsogo_library}_DIR ${${jgsogo_library}_DIR}")
+		message(STATUS "${_jgsogo_library_upper}_INCLUDE_DIRS ${${jgsogo_library}_INCLUDE_DIRS}")
+		message(STATUS "${_jgsogo_library_upper}_LIBRARIES ${${jgsogo_library}_LIBRARIES}")	
+	else()
+		get_target_property(TMP _${jgsogo_library} targets)
+		message(STATUS "Already defined target '${jgsogo_library}' with targets '${TMP}'")
+		foreach(_target ${TMP})
+			get_target_property(TMP2 ${_target} IMPORTED_IMPLIB_DEBUG)
+			message(STATUS "   '${_target}' at ${TMP2}")
+		endforeach()
+	endif()	
+endmacro()

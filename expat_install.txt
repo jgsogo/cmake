@@ -1,0 +1,53 @@
+cmake_minimum_required(VERSION 2.8)
+
+macro(EXPATInstall)
+	if(NOT TARGET Expat)
+		set (EXPAT_Version ${EXPAT_Version} CACHE STRING "Expat version separated by dots (ex: 2.1.0)" FORCE)
+		OPTION(EXPAT_Use_System "Use a expat library supplied on the system" ON)
+		
+		set(EXPAT_ROOT ${EXPAT_ROOT} CACHE PATH "Path to expat library")
+		mark_as_advanced(CLEAR EXPAT_ROOT)
+		if(EXPAT_Use_System)
+			message(STATUS "Expat ${EXPAT_Version} will be used from the system")
+			if (${AS_EXTERNAL_PROJECT})
+				if (NOT DEFINED EXPAT_ROOT)
+					message(FATAL_ERROR "EXPAT_ROOT must be defined when using '${CMAKE_PROJECT_NAME}' as external project")
+				endif()
+			endif()
+			
+			unset(EXPAT_INCLUDE_DIR CACHE)
+			unset(EXPAT_LIBRARY CACHE)
+			find_path(EXPAT_INCLUDE_DIR NAMES expat.h PATHS ${EXPAT_ROOT} ${EXPAT_ROOT}/include ${EXPAT_ROOT}/lib)
+			find_library(EXPAT_LIBRARY NAMES expat libexpat PATHS ${EXPAT_ROOT} ${EXPAT_ROOT}/lib ${EXPAT_ROOT}/build/Release)
+			find_package(Expat ${EXPAT_Version})
+		else()
+			message(STATUS "Expat ${EXPAT_Version} will be downloaded and installed")
+			if (EXPAT_Version VERSION_LESS 2.1.0) 
+				message(FATAL_ERROR "This script works only for Expat >= 2.1.0 (needed CMakeList.txt)") 
+			endif ()
+			
+			include (ExternalProject)
+			
+			#Download, build and install Expat
+			include(ExternalProject)
+			ExternalProject_Add(
+				Expat
+				PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/expat
+				URL http://downloads.sourceforge.net/project/expat/expat/${EXPAT_Version}/expat-${EXPAT_Version}.tar.gz
+				CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}
+				)
+			set_property(TARGET Expat PROPERTY FOLDER "Externals")
+			#ExternalProject_Get_Property( Expat source_dir )
+			#ExternalProject_Get_Property( Expat binary_dir )
+			
+			set(EXPAT_ROOT ${source_dir})
+			mark_as_advanced(EXPAT_ROOT)
+			set( EXPAT_INCLUDE_DIR ${CMAKE_INSTALL_PREFIX}/include CACHE INTERNAL "Internal")
+			set( EXPAT_LIBRARIES expat CACHE INTERNAL "Internal")
+		endif()
+		
+		message(STATUS "EXPAT_ROOT ${EXPAT_ROOT}")
+		message(STATUS "EXPAT_INCLUDE_DIR ${EXPAT_INCLUDE_DIR}")
+		message(STATUS "EXPAT_LIBRARIES ${EXPAT_LIBRARIES}")
+	endif()
+endmacro()
